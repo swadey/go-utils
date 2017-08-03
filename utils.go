@@ -4,7 +4,6 @@ import (
 	"os"
 	"io"
 	"strconv"
-//	"fmt"
 	docopt "github.com/docopt/docopt-go"
 	xz "github.com/remyoudompheng/go-liblzma"
 	"compress/gzip"
@@ -12,6 +11,9 @@ import (
 	"regexp"
 )
 
+// ----------------------------------------------------------------------------------------------------------------
+// Utilities
+// ----------------------------------------------------------------------------------------------------------------
 var filenamePattern = regexp.MustCompile(`^.*\.(gz|bz2|xz)$`)
 
 func Zopen(fn string) (io.Reader, *os.File) {
@@ -39,6 +41,9 @@ func Zopen(fn string) (io.Reader, *os.File) {
 	}
 }
 
+// ----------------------------------------------------------------------------------------------------------------
+// DocOpt wrapper
+// ----------------------------------------------------------------------------------------------------------------
 type Args struct {
 	raw map[string] interface{}
 }
