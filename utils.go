@@ -3,6 +3,7 @@ package utils
 import (
 	"os"
 	"io"
+	"fmt"
 	"strconv"
 	docopt "github.com/docopt/docopt-go"
 	xz "github.com/remyoudompheng/go-liblzma"
@@ -38,6 +39,31 @@ func Zopen(fn string) (io.Reader, *os.File) {
 		}
 
 		return reader, in
+	}
+}
+
+func Zcreate(fn string) (io.Writer, *os.File) {
+	compress := filenamePattern.FindStringSubmatch(fn)
+	if len(compress) == 0 {
+		outf, _	:= os.Create(fn)
+		return outf, outf
+	} else {
+		outf, _	:= os.Create(fn)
+		var writer io.Writer
+
+		switch compress[1] {
+		case "gz":
+			gz := gzip.NewWriter(outf)
+			writer = gz
+		case "bz2":
+			fmt.Fprintf(os.Stderr, "error: bzip2 is not supported")
+			writer = outf
+		case "xz":
+			xz, _ := xz.NewWriter(outf, xz.Level2)
+			writer = xz
+		}
+
+		return writer, outf
 	}
 }
 
