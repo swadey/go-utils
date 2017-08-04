@@ -4,6 +4,8 @@ import (
 	"testing"
 	"strings"
 	"io/ioutil"
+	"time"
+	"fmt"
 )
 
 func TestZopen(t *testing.T) {
@@ -24,10 +26,16 @@ func TestZopen(t *testing.T) {
 }
 
 func TestLogger(t *testing.T) {
-	log := Logger()
-	log.Info("this should be info: %d", 1000)
-	log.Debug("this should be %s", "debug")
-	log.Warn("this should be warn: %f %f", 10.0, 10.0)
-	log.Error("this should be error")
+	Info("this should be info: %d", 1000)
+	Debug("this should be %s", "debug")
+	Warn("this should be warn: %f %f", 10.0, 10.0)
+	Error("this should be error")
+	s := Spin(Spinners[1])
+	for i := 1; i < 10; i++ {
+		time.Sleep(1 * time.Second)
+		fmt.Fprintln(s, "fuck off")
+	}
+	s.Stop()
+	
 }
 

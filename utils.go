@@ -10,9 +10,10 @@ import (
 	"compress/gzip"
 	"compress/bzip2"
 	"regexp"
-	"github.com/gosuri/uilive"
 	"github.com/ttacon/chalk"
 	"time"
+	"github.com/briandowns/spinner"
+	//"github.com/gosuri/uilive"
 )
 
 // ----------------------------------------------------------------------------------------------------------------
@@ -110,40 +111,63 @@ func Docopt(usage string, version string) *Args {
 // ----------------------------------------------------------------------------------------------------------------
 var info_color  = chalk.White.NewStyle()
 var debug_color = chalk.Cyan.NewStyle()
-var warn_color  = chalk.Yellow.NewStyle()
+var warn_color  = chalk.Magenta.NewStyle()
 var error_color = chalk.Red.NewStyle()
 
-type Log struct {
-	log * uilive.Writer
+type Progress interface {
+	Write(p []byte) (n int, err error)
+	Stop()
 }
 
-func Logger() *Log {
-	return & Log{}
+type ExtSpin struct {
+	spinner.Spinner
 }
+// patch spinner
+func (spin *ExtSpin) Write(p []byte) (n int, err error) {
+	spin.Suffix = string(p)
+	return len(p), nil
+}
+var Spinners = spinner.CharSets
 
-func (l *Log) Printf(format string, args... interface{}) {
+func logf(format string, args... interface{}) {
 	fmt.Printf(format, args...)
 }
 
-func (l *Log) logger(tag string, color chalk.Style, format string, args... interface{}) {
-	adjfmt := time.Now().Format("2006-01-02 15:04:05.000") + " %-10s " + format + "\n"
-	x := []interface{}{ tag }
-	x = append(x, args...)
-	l.Printf(color.Style(adjfmt), x...)
+func prefix(tag string) string {
+	return fmt.Sprintf(time.Now().Format("2006-01-02 15:04:05.000") + " %-10s ", tag)
 }
 
-func (l *Log) Info(format string, args... interface{}) {
-	l.logger("[INFO]", info_color, format, args...)
+func logger(tag string, color chalk.Style, format string, args... interface{}) {
+	adjfmt := prefix(tag) + format + "\n"
+	logf(color.Style(adjfmt), args...)
 }
 
-func (l *Log) Debug(format string, args... interface{}) {
-	l.logger("[DEBUG]", debug_color, format, args...)
+func Info(format string, args... interface{}) {
+	logger("[INFO]", info_color, format, args...)
 }
 
-func (l *Log) Warn(format string, args... interface{}) {
-	l.logger("[WARN]", warn_color, format, args...)
+func Debug(format string, args... interface{}) {
+	logger("[DEBUG]", debug_color, format, args...)
 }
 
-func (l *Log) Error(format string, args... interface{}) {
-	l.logger("[ERROR]", error_color, format, args...)
+func Warn(format string, args... interface{}) {
+	logger("[WARN]", warn_color, format, args...)
 }
+
+func Error(format string, args... interface{}) {
+	logger("[ERROR]", error_color, format, args...)
+}
+
+func SpinCustom(spin []string, interval time.Duration, finalizer string) Progress {
+	s := spinner.New(spin, interval)
+	s.Color("yellow")
+	s.Prefix = prefix("[RUNNING]")
+	s.FinalMSG = finalizer
+	s.Start()
+	return &ExtSpin{*s}
+}
+
+func Spin(spin []string) Progress {
+	return SpinCustom(spin, 100*time.Millisecond, " completed.\n")
+}
+
