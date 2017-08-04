@@ -22,3 +22,12 @@ func TestZopen(t *testing.T) {
 	Zopen("test.txt")
 	Zopen("test.txt.xz")
 }
+
+func TestLogger(t *testing.T) {
+	log := Logger()
+	log.Info("this should be info: %d", 1000)
+	log.Debug("this should be %s", "debug")
+	log.Warn("this should be warn: %f %f", 10.0, 10.0)
+	log.Error("this should be error")
+}
+
