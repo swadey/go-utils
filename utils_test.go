@@ -5,7 +5,7 @@ import (
 	"strings"
 	"io/ioutil"
 	"time"
-	"fmt"
+//	"fmt"
 )
 
 func TestZopen(t *testing.T) {
@@ -30,12 +30,19 @@ func TestLogger(t *testing.T) {
 	Debug("this should be %s", "debug")
 	Warn("this should be warn: %f %f", 10.0, 10.0)
 	Error("this should be error")
-	s := Spin(Spinners[1])
+	s := StartSpinner(Spinners[1], 10)
 	for i := 1; i < 10; i++ {
-		time.Sleep(1 * time.Second)
-		fmt.Fprintln(s, "fuck off")
+		time.Sleep(300 * time.Millisecond)
+		s.Update(10)
 	}
 	s.Stop()
+
+	g := StartGauge(100, 10)
+	for i := 1; i < 10; i++ {
+		time.Sleep(300 * time.Millisecond)
+		g.Update(10)
+	}
+	g.Stop()
 	
 }
 

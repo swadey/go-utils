@@ -13,8 +13,22 @@ import (
 	"github.com/ttacon/chalk"
 	"time"
 	"github.com/briandowns/spinner"
-	//"github.com/gosuri/uilive"
+	"strings"
 )
+
+// ----------------------------------------------------------------------------------------------------------------
+// Kontstants
+// ----------------------------------------------------------------------------------------------------------------
+var info_color			= chalk.White.NewStyle()
+var debug_color			= chalk.Cyan.NewStyle()
+var warn_color			= chalk.Magenta.NewStyle()
+var error_color			= chalk.Red.NewStyle()
+var spin_color			= chalk.Yellow.NewStyle()
+var complete_color  = chalk.Green.NewStyle()
+
+var Spinners = spinner.CharSets
+const complete_symbol = "✔"
+const clear = "\033[2K\033[1A\033[J"
 
 // ----------------------------------------------------------------------------------------------------------------
 // Utilities
@@ -107,28 +121,89 @@ func Docopt(usage string, version string) *Args {
 }
 
 // ----------------------------------------------------------------------------------------------------------------
-// Loggers and Spinners
+// Spinner
 // ----------------------------------------------------------------------------------------------------------------
-var info_color  = chalk.White.NewStyle()
-var debug_color = chalk.Cyan.NewStyle()
-var warn_color  = chalk.Magenta.NewStyle()
-var error_color = chalk.Red.NewStyle()
-
-type Progress interface {
-	Write(p []byte) (n int, err error)
-	Stop()
+type Spinner struct {
+	s *spinner.Spinner
+	N int
+	start_time time.Time
+	interval_time time.Time
+	update_interval int
 }
 
-type ExtSpin struct {
-	spinner.Spinner
+func (spin *Spinner) Update(n int) {
+	spin.N += n
+	if spin.N % spin.update_interval == 0 {
+		t_rate := float64(spin.N) / time.Now().Sub(spin.start_time).Seconds()
+		rate   := float64(spin.update_interval) / time.Now().Sub(spin.interval_time).Seconds()
+		spin.s.Suffix = fmt.Sprintf(" %12d complete (%.3f items/sec [total], %.3f items/sec [current interval])", spin.N, t_rate, rate)
+		spin.interval_time = time.Now()
+	}
 }
-// patch spinner
-func (spin *ExtSpin) Write(p []byte) (n int, err error) {
-	spin.Suffix = string(p)
-	return len(p), nil
-}
-var Spinners = spinner.CharSets
 
+func (spin *Spinner) Stop() {
+	total := time.Now().Sub(spin.start_time)
+	rate  := float64(spin.N) / time.Now().Sub(spin.start_time).Seconds()
+	spin.s.FinalMSG = prefix(complete_color.Style("[✔]")) + 
+		fmt.Sprintf("%d %s (total time: %s, %.3f items/sec [total])\n", spin.N, complete_color.Style("[complete]"), total.String(), rate)
+	spin.s.Stop()
+}
+
+func StartSpinner(spin []string, update_interval int) Spinner {
+	s := spinner.New(spin, 100 * time.Millisecond)
+	s.Color("yellow")
+	s.Prefix = spin_color.Style(prefix("[RUNNING]"))
+	s.Start()
+
+	return Spinner{s, 0, time.Now(), time.Now(), update_interval}
+}
+
+// ----------------------------------------------------------------------------------------------------------------
+// Gauge
+// ----------------------------------------------------------------------------------------------------------------
+type Gauge struct {
+	N int
+	total int
+	start_time time.Time
+	interval_time time.Time
+	update_interval int
+}
+
+func (g *Gauge) bar(width int) string {
+	frac := float64(g.N) / float64(g.total)
+	n_c  := int(frac * float64(width) + 0.5)
+	r    := width - n_c
+	
+	return "[" + strings.Repeat("#", n_c) + strings.Repeat(" ", r) + "]"
+}
+
+func (g *Gauge) Update(n int) {
+	g.N += n
+	if g.N % g.update_interval == 0 {
+		t_rate := float64(g.N) / time.Now().Sub(g.start_time).Seconds()
+		rate   := float64(g.update_interval) / time.Now().Sub(g.interval_time).Seconds()
+		str    := spin_color.Style(prefix("[RUNNING]") + g.bar(20)) + fmt.Sprintf(" (%.3f items/sec [total], %.3f items/sec [current interval])", t_rate, rate)
+		fmt.Fprintln(os.Stdout, clear + str)
+		g.interval_time = time.Now()
+	}
+}
+
+func (g *Gauge) Stop() {
+	total := time.Now().Sub(g.start_time)
+	rate  := float64(g.N) / time.Now().Sub(g.start_time).Seconds()
+	str   := prefix(complete_color.Style("[✔]")) +
+		fmt.Sprintf("%d %s (total time: %s, %.3f items/sec [total])", g.N, complete_color.Style("[complete]"), total.String(), rate)
+	fmt.Fprintln(os.Stdout, clear + str)
+}
+
+func StartGauge(total int, update_interval int) Gauge {
+	fmt.Fprint(os.Stdout, spin_color.Style(prefix("[RUNNING]") + "\n"))
+	return Gauge{0, total, time.Now(), time.Now(), update_interval}
+}
+
+// ----------------------------------------------------------------------------------------------------------------
+// Logging
+// ----------------------------------------------------------------------------------------------------------------
 func logf(format string, args... interface{}) {
 	fmt.Printf(format, args...)
 }
@@ -157,17 +232,3 @@ func Warn(format string, args... interface{}) {
 func Error(format string, args... interface{}) {
 	logger("[ERROR]", error_color, format, args...)
 }
-
-func SpinCustom(spin []string, interval time.Duration, finalizer string) Progress {
-	s := spinner.New(spin, interval)
-	s.Color("yellow")
-	s.Prefix = prefix("[RUNNING]")
-	s.FinalMSG = finalizer
-	s.Start()
-	return &ExtSpin{*s}
-}
-
-func Spin(spin []string) Progress {
-	return SpinCustom(spin, 100*time.Millisecond, " completed.\n")
-}
-
